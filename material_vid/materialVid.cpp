@@ -1,3 +1,12 @@
+//
+// This is a basic tutorial for rendering a very simple geometric
+// mesh with materials using OSPRay. All code is written using
+// OSPRay's C interface.
+//
+// Author: Alister Maguire
+// Date: Fri Feb  7 09:45:50 PST 2020
+//
+
 #include <memory>
 #include <random>
 #include <alloca.h>
@@ -6,14 +15,15 @@
 #include <stdio.h>
 #include <vector>
 
-#include "ospray_cpp.h"
+#include "ospray/ospray.h"
+#include "ospray/ospray_cpp.h"
 
 //
 // Helper function to write the rendered image as PPM file.
 // Taken from opsray examples.
 //
 void writePPM(const char *fileName,
-              const osp::vec2i &size,
+              const ospcommon::math::vec2i &size,
               const uint32_t *pixel)
 {
   FILE *file = fopen(fileName, "wb");
@@ -36,92 +46,91 @@ void writePPM(const char *fileName,
   fclose(file);
 }
 
-
 //
 // Generate frames for a movie.
 //
-void makeMovieFrames(osp::vec3f cam_pos,
-                     osp::vec3f cam_view, 
-                     osp::vec3f obj_face, 
-                     osp::vec2i imgSize, 
+void makeMovieFrames(OSPWorld world,
+                     ospcommon::math::vec3f camPos,
+                     ospcommon::math::vec3f camView, 
+                     ospcommon::math::vec3f objCent, 
+                     ospcommon::math::vec2i imgSize, 
                      OSPRenderer renderer,
                      OSPCamera camera,
                      float stepSize = 1.0)
 {
-    OSPFrameBuffer framebuffer = ospNewFrameBuffer(imgSize, OSP_FB_SRGBA, 
+    // Create and setup framebuffer
+    OSPFrameBuffer framebuffer = ospNewFrameBuffer(imgSize[0], imgSize[1], OSP_FB_SRGBA,
         OSP_FB_COLOR | /*OSP_FB_DEPTH |*/ OSP_FB_ACCUM);
-    ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
+    ospResetAccumulation(framebuffer);
 
-    float zpos_low  = cam_pos.z;
-    float zpos_high = -1.0 * zpos_low;
-    float zpos_cur  = zpos_low;
-    float z_inc     = stepSize;
-    int f_idx       = 0;
-    int rsqr        = zpos_high * zpos_high;
+    float zposLow  = camPos.z;
+    float zposHigh = -1.0 * zposLow;
+    float zposCur  = zposLow;
+    float zInc     = stepSize;
+    int fIdx       = 0;
+    int rSqr       = zposHigh * zposHigh;
 
-    while (zpos_cur < zpos_high)
+    while (zposCur < zposHigh)
     {
-        char f_name[128];
-        sprintf(f_name, "frames/frame_%i.ppm", f_idx++);
+        char fName[128];
+        sprintf(fName, "frames/frame_%i.ppm", fIdx++);
 
-        ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
-        for (int frames = 0; frames < 10; frames++)
-          ospRenderFrame(framebuffer, renderer, OSP_FB_COLOR | OSP_FB_ACCUM);
+        ospRenderFrameBlocking(framebuffer, renderer, camera, world);
 
         uint32_t* fb = (uint32_t*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
-        writePPM(f_name, imgSize, fb);
+        writePPM(fName, imgSize, fb);
         ospUnmapFrameBuffer(fb, framebuffer);
+        ospResetAccumulation(framebuffer);
 
-        zpos_cur += z_inc;
-        printf("\nX: %f, Z: %f", cam_pos.x, cam_pos.z);
+        zposCur += zInc;
+        printf("\nX: %f, Z: %f", camPos.x, camPos.z);
 
-        cam_pos.z = zpos_cur;
-        float xsqr = rsqr - (zpos_cur * zpos_cur);
+        camPos.z = zposCur;
+        float xsqr = rSqr - (zposCur * zposCur);
 
         if (xsqr <= 0.0)
-            cam_pos.x = 0.0;
+            camPos.x = 0.0;
         else
-            cam_pos.x = sqrt(xsqr);
+            camPos.x = sqrt(xsqr);
 
-        cam_view.x = obj_face.x - cam_pos.x;
-        cam_view.y = obj_face.y - cam_pos.y;
-        cam_view.z = obj_face.z - cam_pos.z;
+        camView.x = objCent.x - camPos.x;
+        camView.y = objCent.y - camPos.y;
+        camView.z = objCent.z - camPos.z;
 
-        ospSet3f(camera, "pos", cam_pos.x, cam_pos.y, cam_pos.z);
-        ospSet3f(camera, "dir", cam_view.x, cam_view.y, cam_view.z);
+        ospSetParam(camera, "position", OSP_VEC3F, camPos);
+        ospSetParam(camera, "direction", OSP_VEC3F, camView);
         ospCommit(camera);
     }
 
-    while (zpos_cur > zpos_low)
+    while (zposCur > zposLow)
     {
-        char f_name[128];
-        sprintf(f_name, "frames/frame_%i.ppm", f_idx++);
+        char fName[128];
+        sprintf(fName, "frames/frame_%i.ppm", fIdx++);
 
-        ospFrameBufferClear(framebuffer, OSP_FB_COLOR | OSP_FB_ACCUM);
-        for (int frames = 0; frames < 10; frames++)
-          ospRenderFrame(framebuffer, renderer, OSP_FB_COLOR | OSP_FB_ACCUM);
+        ospRenderFrameBlocking(framebuffer, renderer, camera, world);
 
         uint32_t* fb = (uint32_t*)ospMapFrameBuffer(framebuffer, OSP_FB_COLOR);
-        writePPM(f_name, imgSize, fb);
+        writePPM(fName, imgSize, fb);
         ospUnmapFrameBuffer(fb, framebuffer);
+        ospResetAccumulation(framebuffer);
 
-        zpos_cur -= z_inc;
-        printf("\nX: %f, Z: %f", cam_pos.x, cam_pos.z);
+        zposCur -= zInc;
+        printf("\nX: %f, Z: %f", camPos.x, camPos.z);
 
-        cam_pos.z = zpos_cur;
-        float xsqr = rsqr - (zpos_cur * zpos_cur);
+        camPos.z = zposCur;
+        float xsqr = rSqr - (zposCur * zposCur);
 
         if (xsqr <= 0.0)
-            cam_pos.x = 0.0;
+            camPos.x = 0.0;
         else
-            cam_pos.x = -sqrt(xsqr);
+            camPos.x = -sqrt(xsqr);
 
-        cam_view.x = obj_face.x - cam_pos.x;
-        cam_view.y = obj_face.y - cam_pos.y;
-        cam_view.z = obj_face.z - cam_pos.z;
+        camView.x = objCent.x - camPos.x;
+        camView.y = objCent.y - camPos.y;
+        camView.z = objCent.z - camPos.z;
 
-        ospSet3f(camera, "pos", cam_pos.x, cam_pos.y, cam_pos.z);
-        ospSet3f(camera, "dir", cam_view.x, cam_view.y, cam_view.z);
+        ospSetParam(camera, "position", OSP_VEC3F, camPos);
+        ospSetParam(camera, "direction", OSP_VEC3F, camView);
         ospCommit(camera);
     }
 
@@ -143,31 +152,31 @@ int main(int argc, const char **argv) {
         });
 
 
-    // image size
-    osp::vec2i imgSize;
+    // Image info
+    ospcommon::math::vec2i imgSize;
     imgSize.x = 1024; // width
-    imgSize.y = 768; // height
+    imgSize.y = 768;  // height
 
-    osp::vec3f obj_face {0.0, 0.0, 0.0};
+    ospcommon::math::vec3f objCent {0.0, 0.0, 0.0};
 
-    // camera
-    osp::vec3f cam_pos  { 0.0f, 0.0f, -5.0f};
-    osp::vec3f cam_up   { 0.f, 1.f, 0.f};
-    osp::vec3f cam_view { obj_face.x - cam_pos.x,
-                          obj_face.y - cam_pos.y,
-                          obj_face.z - cam_pos.z };
+    // Camera
+    ospcommon::math::vec3f camPos  { 0.0f, 0.0f, -5.0f};
+    ospcommon::math::vec3f camUp   { 0.f, 1.f, 0.f};
+    ospcommon::math::vec3f camView { objCent.x - camPos.x,
+                                      objCent.y - camPos.y,
+                                      objCent.z - camPos.z };
 
-    // triangle mesh data
+    // Mesh data.
     int numVertex = 8;
     float vertex[] = { 
-                       -0.5f, -0.5f, 0.5f, 
-                        0.5f, -0.5f, 0.5f, 
-                        0.5f,  0.5f, 0.5f,
-                       -0.5f,  0.5f, 0.5f,
-                       -0.5f, .5f, -.5f, 
-                       .5f, .5f, -.5f, 
-                       .5f, -.5f, -.5f, 
-                       -.5f, -.5f, -.5f
+                       -0.5f, -0.5f,  0.5f, 
+                        0.5f, -0.5f,  0.5f, 
+                        0.5f,  0.5f,  0.5f,
+                       -0.5f,  0.5f,  0.5f,
+                       -0.5f,  0.5f, -0.5f, 
+                        0.5f,  0.5f, -0.5f, 
+                        0.5f, -0.5f, -0.5f, 
+                       -0.5f, -0.5f, -0.5f,
                      };
     float color[] =  { 
                        1.0f, 0.0f, 0.0f, 1.0f,
@@ -192,67 +201,86 @@ int main(int argc, const char **argv) {
                       };
 
 
-    // Create and setup camera
+    // Create and setup camera.
     OSPCamera camera = ospNewCamera("perspective");
-    ospSet1f(camera, "aspect", ((float) imgSize.x) / ((float) imgSize.y));
-    ospSet3f(camera, "pos", cam_pos.x, cam_pos.y, cam_pos.z);
-    ospSet3f(camera, "dir", cam_view.x, cam_view.y, cam_view.z);
-    ospSet3f(camera, "up", cam_up.x, cam_up.y, cam_up.z);
+    ospSetFloat(camera, "aspect", ((float) imgSize.x) / ((float) imgSize.y));
+    ospSetParam(camera, "position", OSP_VEC3F, camPos);
+    ospSetParam(camera, "direction", OSP_VEC3F, camView);
+    ospSetParam(camera, "up", OSP_VEC3F, camUp);
     ospCommit(camera);
 
-    // Create and setup model and mesh
-    OSPGeometry mesh = ospNewGeometry("triangles");
+    // Create our mesh structure.
+    OSPGeometry mesh = ospNewGeometry("mesh");
 
-    OSPData vertexData = ospNewData(numVertex, OSP_FLOAT3, vertex);
+    OSPData vertexData = ospNewSharedData1D(vertex, OSP_VEC3F, 8);
     ospCommit(vertexData);
-    ospSetData(mesh, "vertex", vertexData);    
+    ospSetObject(mesh, "vertex.position", vertexData);
     ospRelease(vertexData);
 
-    OSPData colorData = ospNewData(numVertex, OSP_FLOAT4, color);
+    OSPData colorData = ospNewSharedData1D(color, OSP_VEC4F, 8);
     ospCommit(colorData);
-    ospSetData(mesh, "vertex.color", colorData);
+    ospSetObject(mesh, "vertex.color", colorData);
     ospRelease(colorData);
 
-    OSPData indexData = ospNewData(numIdx, OSP_INT3, index);
+    OSPData indexData = ospNewSharedData1D(index, OSP_VEC3UI, 8);
     ospCommit(indexData);
-    ospSetData(mesh, "index", indexData);
+    ospSetObject(mesh, "index", indexData);
     ospRelease(indexData);
 
-    // Create a material to associate with our geometry.
-    OSPMaterial material = ospNewMaterial2("pathtracer", "ThinGlass");
-    ospSet1f(material, "attenuationDistance", 0.2f);
-    ospCommit(material);
-    ospSetMaterial(mesh, material);
-
+    // Create and assign a material to the geometry.
+    OSPMaterial mat = ospNewMaterial("pathtracer", "thinGlass");
+    ospSetFloat(mat, "thickness", .2f);
+    ospSetFloat(mat, "attenuationDistance", .2f);
+    ospCommit(mat);
     ospCommit(mesh);
 
-    // World creation
-    OSPModel world = ospNewModel();
-    ospAddGeometry(world, mesh);
+    // Create a model for our mesh.
+    OSPGeometricModel model = ospNewGeometricModel(mesh);
+    ospSetObject(model, "material", mat);
+    ospCommit(model);
     ospRelease(mesh);
-    ospCommit(world);
+    ospRelease(mat);
+
+    // Create a group for our model(s).
+    OSPGroup group = ospNewGroup();
+    ospSetObjectAsData(group, "geometry", OSP_GEOMETRIC_MODEL, model);
+    ospCommit(group);
+    ospRelease(model);
+
+    // Create an instance of our group.
+    OSPInstance instance = ospNewInstance(group);
+    ospCommit(instance);
+    ospRelease(group);
+
+    // Create a world for our instance.
+    OSPWorld world = ospNewWorld();
+    ospSetObjectAsData(world, "instance", OSP_INSTANCE, instance);
+    ospRelease(instance);
 
     // Create and setup light for Ambient Occlusion
-    OSPLight ambientLight = ospNewLight3("ambient");
-    ospSet3f(ambientLight, "color", 1.f, 1.f, 1.f);
+    OSPLight ambientLight = ospNewLight("ambient");
     ospCommit(ambientLight);
-    OSPData lights = ospNewData(1, OSP_LIGHT, &ambientLight);
-    ospCommit(lights);
+
+    // Add light to our world.
+    ospSetObjectAsData(world, "light", OSP_LIGHT, ambientLight);
+    ospRelease(ambientLight);
+    ospCommit(world);
 
     // Create renderer
     OSPRenderer renderer = ospNewRenderer("pathtracer");
 
-    ospSet1i(renderer, "aoSamples", 100);
-    ospSet1i(renderer, "aoIntensity", 10);
-    ospSet3f(renderer, "bgColor", 1.0, 1.0, 1.0);
-    ospSetObject(renderer, "model", world);
-    ospSetObject(renderer, "camera", camera);
-    ospSetObject(renderer, "lights", lights);
+    ospcommon::math::vec4f bgColor { 1.0f, 0.0f, 0.0f, 1.0f };
+
+    ospSetInt(renderer, "pixelSamples", 10);
+    //FIXME: background color not working...
+    ospSetParam(renderer, "backgroundColor", OSP_VEC4F, bgColor);
     ospCommit(renderer);
 
-    makeMovieFrames(cam_pos, 
-                    cam_view, 
-                    obj_face, 
+    // Big budget movie.
+    makeMovieFrames(world,
+                    camPos, 
+                    camView, 
+                    objCent, 
                     imgSize, 
                     renderer,
                     camera,
@@ -261,9 +289,7 @@ int main(int argc, const char **argv) {
     // Final cleanups
     ospRelease(renderer);
     ospRelease(camera);
-    ospRelease(lights);
     ospRelease(world);
-    ospRelease(material);
 
     ospShutdown();
 
