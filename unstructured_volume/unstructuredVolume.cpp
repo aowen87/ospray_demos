@@ -182,9 +182,10 @@ int main(int argc, const char **argv)
     //    |/       |/ 
     //    0--------1
     //
+    // I've also added a tet that sits behind this geometry.
     //
-    int numCells    = 2;
-    int numVertices = 9;
+    int numCells    = 3;
+    int numVertices = 13;
     float vertexPositions[] = {
         -1.0, -0.5,  0.5, // 0
          0.0, -0.5,  0.5, // 1
@@ -195,21 +196,28 @@ int main(int argc, const char **argv)
          0.0,  0.5, -0.5, // 6
         -1.0,  0.5, -0.5, // 7
          1.0,  0.0,  0.0, // 8
+
+        -0.5, -0.5, -1.0, // 9
+         0.5, -0.5, -1.0, // 10
+         0.0, -0.5, -2.0, // 11
+         0.0,  0.5, -1.5, // 12
     };
 
     int numIndices = 13;
     unsigned int indices[] = {
         0, 1, 2, 3, 4, 5, 6, 7, // Hex cell
         1, 2, 6, 5, 8,          // Pyramid cell
+        9, 10, 11, 12,          // Tet cell
     };
 
     unsigned int cellStarts[] = {
-        0, 8
+        0, 8, 13
     };
 
     uint8_t cellTypes[] {
         OSP_HEXAHEDRON,
         OSP_PYRAMID,
+        OSP_TETRAHEDRON,
     };
 
     std::vector<float> vertexData(numVertices);
@@ -325,7 +333,7 @@ int main(int argc, const char **argv)
                     imgSize, 
                     renderer,
                     camera,
-                    2.0);
+                    0.3);
 
     // Cleanup remaining objects
     ospRelease(camera);

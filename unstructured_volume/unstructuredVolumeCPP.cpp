@@ -183,9 +183,10 @@ int main(int argc, const char **argv)
         //    |/       |/ 
         //    0--------1
         //
+        // I've also added a tet that sits behind this geometry.
         //
-        int numCells = 2;
-        int numVertices = 9;
+        int numCells = 3;
+        int numVertices = 13;
         std::vector<ospcommon::math::vec3f> vertexPositions = {
             {-1.0, -0.5,  0.5}, // 0
             { 0.0, -0.5,  0.5}, // 1
@@ -196,21 +197,27 @@ int main(int argc, const char **argv)
             { 0.0,  0.5, -0.5}, // 6
             {-1.0,  0.5, -0.5}, // 7
             { 1.0,  0.0,  0.0}, // 8
+            {-0.5, -0.5, -1.0}, // 9
+            { 0.5, -0.5, -1.0}, // 10
+            { 0.0, -0.5, -2.0}, // 11
+            { 0.0,  0.5, -1.5}, // 12
         };
 
         int numIndices = 13;
         std::vector<uint32_t> indices = {
             0, 1, 2, 3, 4, 5, 6, 7,  // Hex cell 1
             1, 2, 6, 5, 8,           // Pyramid cell
+            9, 10, 11, 12,          // Tet cell
         };
 
         std::vector<uint32_t> cellStarts = {
-            0, 8
+            0, 8, 13
         };
 
         std::vector<uint8_t> cellTypes = {
             OSP_HEXAHEDRON,
             OSP_PYRAMID,
+            OSP_TETRAHEDRON,
         };
 
         std::vector<float> cellData(numCells);
@@ -276,7 +283,7 @@ int main(int argc, const char **argv)
         ospray::cpp::Renderer renderer("scivis");
         renderer.setParam("backgroundColor", 1.0f);
         renderer.setParam("aoSamples", 100);
-        renderer.setParam("aoIntensity", 10.0f);
+        renderer.setParam("aoIntensity", 10000.0f);
         renderer.setParam("volumeSamplingRate", 30.0f);
         renderer.commit();
 
@@ -288,7 +295,7 @@ int main(int argc, const char **argv)
                         imgSize, 
                         renderer,
                         camera,
-                        2.0);
+                        0.3);
     };
 
     ospShutdown();
