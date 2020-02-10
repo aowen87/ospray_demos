@@ -5,6 +5,13 @@ project(s_volume)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# May need to set these
+set(ospcommon_DIR path/goes/here)
+set(openvkl_DIR path/goes/here)
+set(ispc_DIR path/goes/here)
+set(embree_DIR path/goes/here)
+set(OSPCOMMON_TBB_ROOT path/goes/here)
+
 find_package(embree 3.2.0 REQUIRED
              PATHS
              #PATH TO EMBREE

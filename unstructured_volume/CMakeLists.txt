@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.7)
 
-project(material_vid)
+project(us_volume)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,7 +22,7 @@ find_package(ospray 1.6.1 REQUIRED
              #PATH TO OSPRAY
             )
 
-add_executable(material_vid materialVid.cpp) 
+add_executable(us_volume unstructuredVolume.cpp) 
 
-target_link_libraries(material_vid ospray::ospray)
+target_link_libraries(us_volume ospray::ospray)
 
