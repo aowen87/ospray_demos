@@ -1,0 +1,8 @@
+Simple examples of using OSPRay.
+
+version-1.x: 
+    This diretory contains examples of using OSPRay version (you guessed it) 1.x. 
+    The non-vtk modules are using version 1.8, and the vtk modules are using 1.6.1.
+
+version-2.x: 
+    Likewise, this directory contains examples of using OSPRay version 2.x. 

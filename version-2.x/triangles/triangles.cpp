@@ -1,6 +1,6 @@
 //
 // This is a basic tutorial for rendering a very simple geometric
-// mesh using OSPRay.
+// mesh using OSPRay version 2.0.
 //
 // This is largely based off of ospTutorial.c, located within the
 // OSPRay repo.

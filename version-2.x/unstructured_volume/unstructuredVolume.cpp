@@ -287,7 +287,7 @@ int main(int argc, const char **argv)
     ospRelease(tfOpacityData);
     ospCommit(tfn);
 
-    // Create a model for our mesh.
+    // Create a model for our volume.
     OSPVolumetricModel model = ospNewVolumetricModel(volume);
     ospSetObject(model, "transferFunction", tfn);
     ospCommit(model);
