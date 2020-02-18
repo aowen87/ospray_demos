@@ -50,10 +50,9 @@ getPolyDataMapperNode(void)
   return ospMapperNode;
 }
 
-vtkUnstructuredGrid *
-readUnstructuredGrid(const char *fName)
+void
+readUnstructuredGrid(const char *fName, vtkUnstructuredGrid *usGrid)
 {
-  vtkUnstructuredGrid *usGrid = vtkUnstructuredGrid::New();
   std::string extension =
     vtksys::SystemTools::GetFilenameLastExtension(std::string(fName));
 
@@ -78,8 +77,6 @@ readUnstructuredGrid(const char *fName)
   {
     fprintf(stderr, "\nERROR: Unknown file extension %s\n", extension.c_str());
   }
-
-  return usGrid;
 }
 
 int main(int argc, char *argv[])
@@ -111,7 +108,9 @@ int main(int argc, char *argv[])
 
   // Read in our unstructured grid.
   std::cout << "Loading: " << argv[1] << std::endl;
-  auto unstructuredGrid = readUnstructuredGrid(argv[1]);
+  vtkSmartPointer<vtkUnstructuredGrid> unstructuredGrid = 
+    vtkSmartPointer<vtkUnstructuredGrid>::New();
+  readUnstructuredGrid(argv[1], unstructuredGrid);
 
   // Convert our grid to polydata.
   vtkSmartPointer<vtkGeometryFilter> geometryFilter = 
@@ -167,11 +166,6 @@ int main(int argc, char *argv[])
   renderer->SetPass(osprayPass);
   renderWindow->Render();
   interactor->Start();
-
-  if (unstructuredGrid != NULL)
-  {
-    unstructuredGrid->Delete();
-  }
 
   return EXIT_SUCCESS;
 }
