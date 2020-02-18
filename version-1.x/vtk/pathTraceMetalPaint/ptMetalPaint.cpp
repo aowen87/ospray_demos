@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
   actor->GetProperty()->SetMaterialName("mat 1");
   actor->GetProperty()->SetSpecular(.3);
   actor->GetProperty()->SetSpecularPower(30);
-  actor->GetProperty()->EdgeVisibilityOn();
+  actor->GetProperty()->EdgeVisibilityOff();
 
   renderer->AddActor(actor);
   renderer->GetActiveCamera()->Azimuth(45);
