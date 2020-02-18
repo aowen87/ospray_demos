@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
   // Create a polydata mapper.
   auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
   mapper->SetInputData(polyData);
-  mapper->ScalarVisibilityOn();
+  mapper->ScalarVisibilityOff();
   mapper->Update();
 
   // Tell vtk to use OSPRay as a backend in place of vtkPolyDataMapper.
