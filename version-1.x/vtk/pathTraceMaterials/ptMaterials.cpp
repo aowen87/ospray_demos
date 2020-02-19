@@ -224,7 +224,6 @@ int main(int argc, char *argv[])
   renderer->AddActor(actor);
   renderer->GetActiveCamera()->Azimuth(45);
   renderer->GetActiveCamera()->Elevation(45);
-  renderer->SetUseShadows(true);
   renderer->ResetCamera();
   renderer->SetPass(osprayPass);
   renderWindow->Render();
