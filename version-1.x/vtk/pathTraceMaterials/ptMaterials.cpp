@@ -1,13 +1,9 @@
 //
-// This is a simple example of path tracing an unstructured
-// grid with metal as an applied material. The frontend is
-// VTK, and the backend is OSPRay.
-//
-// Some of this code comes from the VTK examples:
-// https://lorensen.github.io/VTKExamples/site/Cxx/
+// This is a simple example of rendering materials using
+// the OSPRay backend of VTK.
 //
 // Author: Alister Maguire
-// Date: Wed Feb 12 10:32:32 MST 2020
+// Date: Wed Feb 19 10:51:17 MST 2020
 //
 
 #include <vtkSmartPointer.h>
@@ -15,10 +11,9 @@
 #include <vtkUnstructuredGridReader.h>
 #include <vtkXMLUnstructuredGridReader.h>
 #include <vtkUnstructuredGrid.h>
-#include <vtkSphereSource.h>
-#include <vtkAppendFilter.h>
 #include <vtkGeometryFilter.h>
 #include <vtkPolyData.h>
+#include <vtkPolyDataNormals.h>
 
 #include <vtkActor.h>
 #include <vtkCamera.h>
@@ -81,9 +76,47 @@ readUnstructuredGrid(const char *fName, vtkUnstructuredGrid *usGrid)
 
 int main(int argc, char *argv[])
 {
-  if (argc < 2)
+
+  std::vector<std::string> materials = {"Glass", "Metal", "MetallicPaint"};
+
+  if (argc < 3)
   {
-    fprintf(stderr, "\nUsage: ./usReader VTKFile\n");
+    fprintf(stderr, "\nUsage: ./ptMaterials MaterialType VTKFile\n");
+    fprintf(stderr, "\nAvailable materials: ");
+    for (std::vector<std::string>::iterator it = materials.begin();
+         it != materials.end(); ++it)
+    {
+      fprintf(stdout, "\n%s", it->c_str());
+    }
+    fprintf(stdout, "\n");
+
+    return EXIT_FAILURE;
+  }
+
+  std::string chosenMat = std::string(argv[1]);
+  const char *dataPath  = argv[2];
+
+  bool validMat = false;
+  for (std::vector<std::string>::iterator it = materials.begin();
+       it != materials.end(); ++it)
+  {
+    if (chosenMat == (*it))
+    {
+      validMat = true;
+      break;
+    }
+  }
+
+  if (!validMat)
+  {
+    fprintf(stderr, "\nInvalid material: %s\n", chosenMat.c_str());
+    fprintf(stderr, "\nAvailable materials: ");
+    for (std::vector<std::string>::iterator it = materials.begin();
+         it != materials.end(); ++it)
+    {
+      fprintf(stdout, "\n%s", it->c_str());
+    }
+    fprintf(stdout, "\n");
     return EXIT_FAILURE;
   }
 
@@ -92,6 +125,7 @@ int main(int argc, char *argv[])
 
   vtkSmartPointer<vtkRenderer> renderer = 
     vtkSmartPointer<vtkRenderer>::New();
+  renderer->UseHiddenLineRemovalOn();
 
   vtkSmartPointer<vtkRenderWindow> renderWindow = 
     vtkSmartPointer<vtkRenderWindow>::New();
@@ -102,23 +136,26 @@ int main(int argc, char *argv[])
   auto interactor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
   interactor->SetRenderWindow(renderWindow);
 
-  //renderer->SetBackground(colors->GetColor3d("Wheat").GetData());
-  renderer->SetBackground(colors->GetColor3d("Silver").GetData());
-  renderer->UseHiddenLineRemovalOn();
-
   // Read in our unstructured grid.
-  std::cout << "Loading: " << argv[1] << std::endl;
+  std::cout << "Loading: " << dataPath << std::endl;
   vtkSmartPointer<vtkUnstructuredGrid> unstructuredGrid = 
     vtkSmartPointer<vtkUnstructuredGrid>::New();
-  readUnstructuredGrid(argv[1], unstructuredGrid);
+  readUnstructuredGrid(dataPath, unstructuredGrid);
 
   // Convert our grid to polydata.
   vtkSmartPointer<vtkGeometryFilter> geometryFilter = 
   vtkSmartPointer<vtkGeometryFilter>::New();
   geometryFilter->SetInputData(unstructuredGrid);
   geometryFilter->Update(); 
- 
-  vtkPolyData* polyData = geometryFilter->GetOutput();
+
+  vtkSmartPointer<vtkPolyDataNormals> normalGenerator = 
+    vtkSmartPointer<vtkPolyDataNormals>::New();
+  normalGenerator->SetInputData(geometryFilter->GetOutput());
+  normalGenerator->ComputePointNormalsOn();
+  normalGenerator->ComputeCellNormalsOn();
+  normalGenerator->Update();
+  
+  vtkPolyData* polyData = normalGenerator->GetOutput();
 
   // Create a polydata mapper.
   auto mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
@@ -133,19 +170,46 @@ int main(int argc, char *argv[])
       getPolyDataMapperNode);
   vtkOSPRayRendererNode::SetRendererType("pathtracer", renderer);
 
-  // Here we create out OSPRay material.
+  // Now, let's create our material.
   vtkSmartPointer<vtkOSPRayMaterialLibrary> matLib =
     vtkSmartPointer<vtkOSPRayMaterialLibrary>::New();
-  matLib->AddMaterial("mat 1", "MetallicPaint");
-  // Base color of paint.
-  double baseColor[3] = {0.0, 0.1, 1.0};
-  // Reflective color.
-  double flakeColor[3] = {1.0, 1.0, 1.0};
-  // Reflective spread.
-  double fSpread = .3;
-  matLib->AddShaderVariable("mat 1", "baseColor", 3, baseColor);
-  matLib->AddShaderVariable("mat 1", "flakeColor", 3, flakeColor);
-  matLib->AddShaderVariable("mat 1", "flakeSpread", 1, &fSpread);
+
+  if (chosenMat == "Glass")
+  {
+    matLib->AddMaterial("mat 1", "Glass");
+    double color[]      = {1.0, 0.0, 0.0};
+    double attenColor[] = {1.0, 0.0, 0.0};
+    double attenDist    = 1.0;
+    double thickness    = 0.2;
+    matLib->AddShaderVariable("mat 1", "color", 3, color);
+    matLib->AddShaderVariable("mat 1", "attenuationColor", 3, attenColor);
+    matLib->AddShaderVariable("mat 1", "attenuationDistance", 1, &attenDist);
+    matLib->AddShaderVariable("mat 1", "thickness", 1, &thickness);
+    renderer->SetBackground(colors->GetColor3d("Honeydew").GetData());
+  }
+  else if (chosenMat == "Metal")
+  {
+    matLib->AddMaterial("mat 1", "Metal");
+    double eta[3]    = {1.5, 0.98, 0.6};
+    double k[3]      = {7.6, 6.6, 5.4};
+    double roughness = .1;
+    matLib->AddShaderVariable("mat 1", "eta", 3, eta);
+    matLib->AddShaderVariable("mat 1", "k", 3, k);
+    matLib->AddShaderVariable("mat 1", "roughness", 1, &roughness);
+    renderer->SetBackground(colors->GetColor3d("Snow").GetData());
+  }
+  else if (chosenMat == "MetallicPaint")
+  {
+    matLib->AddMaterial("mat 1", "MetallicPaint");
+    double baseColor[3] = {0.0, 0.1, 1.0};
+    double flakeColor[3] = {1.0, 1.0, 1.0};
+    double fSpread = .3;
+    matLib->AddShaderVariable("mat 1", "baseColor", 3, baseColor);
+    matLib->AddShaderVariable("mat 1", "flakeColor", 3, flakeColor);
+    matLib->AddShaderVariable("mat 1", "flakeSpread", 1, &fSpread);
+    renderer->SetBackground(colors->GetColor3d("Silver").GetData());
+  }
+
   vtkOSPRayRendererNode::SetMaterialLibrary(matLib, renderer);
   vtkOSPRayRendererNode::SetRendererType("pathtracer", renderer);
   vtkOSPRayRendererNode::SetSamplesPerPixel(8, renderer);
