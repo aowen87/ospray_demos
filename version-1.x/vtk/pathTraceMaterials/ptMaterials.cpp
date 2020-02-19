@@ -211,7 +211,6 @@ int main(int argc, char *argv[])
   }
 
   vtkOSPRayRendererNode::SetMaterialLibrary(matLib, renderer);
-  vtkOSPRayRendererNode::SetRendererType("pathtracer", renderer);
   vtkOSPRayRendererNode::SetSamplesPerPixel(8, renderer);
 
   // Specify our material in the actor.
