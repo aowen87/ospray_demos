@@ -87,6 +87,11 @@ int main(int, char *[])
 
   // Tell vtk to use OSPRay as a backend in place of vtkPolyDataMapper.
   vtkNew<vtkOSPRayPass> osprayPass;
+
+  // NOTE: accessing the view node factory and registering an override
+  // is not standard. This comes from a VTK patch within VisIt. In all
+  // of these examples, this section can be excluded. It is ony here as
+  // guidance for VisIt developers.
   vtkViewNodeFactory *factory = osprayPass->GetViewNodeFactory();
   factory->RegisterOverride("vtkPolyDataMapper", 
       getPolyDataMapperNode);
